@@ -22,14 +22,15 @@ namespace Neo.Plugins
         private bool _continue;
         private string _lastCmd;
         private uint _lineOffset;
-        private Dictionary<byte[], HashSet<uint>> _script_break_points;
+        private Dictionary<UInt160, HashSet<uint>> _script_break_points;
         private HashSet<UInt256> _tx_break_points;
         private HashSet<uint> _block_break_points;
         private List<string> commandList;
+        private string prevScript;
 
         public override void Configure()
         {
-            _script_break_points = new Dictionary<byte[], HashSet<uint>>();
+            _script_break_points = new Dictionary<UInt160, HashSet<uint>>();
             _tx_break_points = new HashSet<UInt256>();
             _block_break_points = new HashSet<uint>();
 
@@ -112,10 +113,11 @@ namespace Neo.Plugins
                     {
                         InvocationTransaction tx = (InvocationTransaction)_engine.ScriptContainer;
                         // Script:offset breakpoint
-                        if (_continue && _script_break_points.TryGetValue(_engine.CurrentContext.ScriptHash, out HashSet<uint> hashset) && hashset.Contains((uint)_engine.CurrentContext.InstructionPointer))
+                        UInt160 scripthash = new UInt160(_engine.CurrentContext.ScriptHash);
+                        uint pos = (uint) _engine.CurrentContext.InstructionPointer;
+                        if (_continue && _script_break_points.TryGetValue(scripthash, out HashSet<uint> hashset) && hashset.Contains(pos))
                         {
-                            string curScript = _engine.CurrentContext.ScriptHash.Reverse().ToHexString();
-                            Console.WriteLine($"Breakpoint hit at script {curScript}:{_engine.CurrentContext.InstructionPointer}");
+                            Console.WriteLine($"Breakpoint hit at script {scripthash.ToString()}:{pos}");
                             Console.WriteLine($"Block: {_height}");
                             Console.WriteLine($"Tx: {tx.Hash.ToString()}");
                             PrintNext();
@@ -298,10 +300,10 @@ namespace Neo.Plugins
         {
             UInt160 script_hash = UInt160.Parse(args[1]);
             uint pos = uint.Parse(args[2]);
-            if (!_script_break_points.TryGetValue(script_hash.ToArray(), out HashSet<uint> hashset))
+            if (!_script_break_points.TryGetValue(script_hash, out HashSet<uint> hashset))
             {
                 hashset = new HashSet<uint>();
-                _script_break_points.Add(script_hash.ToArray(), hashset);
+                _script_break_points.Add(script_hash, hashset);
             }
             hashset.Add(pos);
 
@@ -314,9 +316,9 @@ namespace Neo.Plugins
             UInt160 script_hash = UInt160.Parse(args[1]);
             uint pos = uint.Parse(args[2]);
 
-            if (!_script_break_points.TryGetValue(script_hash.ToArray(), out HashSet<uint> hashset)) return false;
+            if (!_script_break_points.TryGetValue(script_hash, out HashSet<uint> hashset)) return false;
             if (!hashset.Remove(pos)) return false;
-            if (hashset.Count == 0) _script_break_points.Remove(script_hash.ToArray());
+            if (hashset.Count == 0) _script_break_points.Remove(script_hash);
             Console.WriteLine($"Removed breakpoint in {args[1]} at {args[2]}");
             return true;
         }
@@ -360,9 +362,9 @@ namespace Neo.Plugins
         private bool ListBreakPoints()
         {
             Console.WriteLine("Script breakpoints:");
-            foreach (KeyValuePair<byte[], HashSet<uint>> s in _script_break_points)
+            foreach (KeyValuePair<UInt160, HashSet<uint>> s in _script_break_points)
             {
-                string script_hash = new UInt160(s.Key).ToString();
+                string script_hash = s.Key.ToString();
                 foreach (uint offset in s.Value)
                 {
                     Console.WriteLine($"  {script_hash}:{offset}");
