@@ -1,4 +1,5 @@
-# LocalDebugger - a neo-cli plugin for debugging historical Neo smart contract executions
+# LocalDebugger
+a neo-cli plugin for debugging historical Neo smart contract executions
 
 ## Compile
 ```
