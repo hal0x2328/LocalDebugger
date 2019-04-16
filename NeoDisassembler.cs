@@ -239,7 +239,6 @@ namespace Neo.Plugins
         public static AVMDisassemble Disassemble(byte[] script)
         {
             InitHints();
-
             var output = new List<DisassembleEntry>();
 
             using (var stream = new MemoryStream(script))
@@ -320,6 +319,24 @@ namespace Neo.Plugins
                                 //case OpCode.NOP:
 
                                 case OpCode.CALL:
+                                case OpCode.CALL_I:
+                                    {
+                                        int other = reader.ReadInt16();
+                                        int offset = reader.ReadInt16();
+                                        break;
+                                    }
+                                case OpCode.CALL_E:
+                                case OpCode.CALL_ET:
+                                    {
+                                        int other = reader.ReadInt16();
+                                        byte[] script_hash = reader.ReadBytes(20);
+                                        entry.data = script_hash.Reverse().ToArray();
+                                        entry.comment = "NEP8-calls script with hash: $XX";
+                                        break;
+                                    }
+
+                                case OpCode.CALL_ED:
+                                case OpCode.CALL_EDT:
                                 case OpCode.JMP:
                                 case OpCode.JMPIF:
                                 case OpCode.JMPIFNOT:
@@ -448,7 +465,7 @@ namespace Neo.Plugins
                                         if (!Enum.IsDefined(typeof(OpCode), opcode))
                                         {
                                             var s = ((byte)opcode).ToString();
-                                            throw new DisassembleException("Invalid opcode " + s);
+                                            Console.WriteLine($"Invalid opcode {s} at {entry.startOfs}");
                                         }
 
                                         break;
